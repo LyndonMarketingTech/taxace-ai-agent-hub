@@ -1,21 +1,23 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import Link from "next/link";
 import Script from "next/script";
-import { auth, signOut } from "@/auth";
+import { redirect } from "next/navigation";
+import { signOut } from "@/auth";
+import { getActiveUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const session = await auth(); // proxy already blocks anonymous users; this is defense in depth
-  if (!session?.user) {
-    const { redirect } = await import("next/navigation");
-    redirect("/login");
-  }
+  const user = await getActiveUser(); // proxy blocks anonymous users; this also rejects disabled ones
+  if (!user) redirect("/login");
   const html = await readFile(path.join(process.cwd(), "content", "hub.html"), "utf8");
   return (
     <>
       <div className="user-bar">
-        <span>{session!.user!.email}</span>
+        <span>{user.name}</span>
+        <Link href="/account">Account</Link>
+        {user.role === "admin" && <Link href="/admin">Admin</Link>}
         <form
           action={async () => {
             "use server";

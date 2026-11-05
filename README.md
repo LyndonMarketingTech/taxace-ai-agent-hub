@@ -1,25 +1,29 @@
 # TaxAce AI Agent Hub (Next.js + Auth.js + Neon)
 
-Internal guide hub for MarGine, Newella, Vidora and Webtrix, now behind Google sign-in.
+Internal guide hub for MarGine, Newella, Vidora and Webtrix, behind email + password sign-in.
 
-- **Auth:** Auth.js v5, Google provider, limited to `ALLOWED_EMAIL_DOMAINS` (default `taxace.com`) plus optional `ALLOWED_EMAILS`.
-- **Database:** Neon Postgres stores users and accounts (JWT sessions, 12 h).
-- **Protection:** `proxy.ts` redirects every anonymous request to `/login`. Guide content lives in `content/` (never in `public/`), and agent images are served through `/img/[name]`, which also requires sign-in. Only the logo, favicon, `hub.js` and `/login` are public.
+- **Accounts are admin-created.** There is no public sign-up. Emails must be on `ALLOWED_EMAIL_DOMAINS` (default `taxace.com`).
+- **Auth:** Auth.js v5 Credentials provider, bcrypt password hashes in Neon, 8-hour sessions.
+- **Brute-force protection:** 5 wrong passwords locks the account for 15 minutes (an admin reset clears it).
+- **Protection:** `proxy.ts` redirects every anonymous request to `/login`. Guide content lives in `content/` (not `public/`), and images are served through `/img/[name]`, which also requires sign-in. Only the logo, favicon, `hub.js` and `/login` are public. Disabling a user blocks them on their next page load.
+- **Pages:** `/` hub, `/account` change own password, `/admin` add users, reset passwords, disable/enable (admins only).
 
 ## Setup
 
-1. **Neon:** create a project, copy the **pooled** connection string.
-2. **Create tables** (once):
-   ```powershell
-   $env:DATABASE_URL = "postgresql://..."
-   npm run db:migrate
+1. **Neon:** create a project and copy the **pooled** connection string.
+2. **Env vars** (`.env.local` locally, Vercel Project Settings in production):
+   - `DATABASE_URL`: the Neon string
+   - `AUTH_SECRET`: generate with `npx auth secret`
+   - `ALLOWED_EMAIL_DOMAINS`: `taxace.com`
+3. **Create the table** (once):
+   ```bash
+   DATABASE_URL='postgresql://...' npm run db:migrate
    ```
-3. **Google OAuth:** Google Cloud Console > APIs & Services > Credentials > Create OAuth client ID > Web application.
-   Authorized redirect URIs:
-   - `http://localhost:3000/api/auth/callback/google`
-   - `https://YOUR-VERCEL-DOMAIN/api/auth/callback/google`
-   (If the OAuth consent screen is set to "Internal" for your Workspace, only taxace.com users can even attempt sign-in.)
-4. **Env vars:** copy `.env.example` to `.env.local` and fill it in. Generate `AUTH_SECRET` with `npx auth secret`.
+4. **Create the first admin** (once):
+   ```bash
+   DATABASE_URL='postgresql://...' npm run user:add -- "Your Name" you@taxace.com "a-long-temporary-password" --admin
+   ```
+   After signing in, add everyone else at `/admin` and change your own password at `/account`.
 
 ## Run locally
 
@@ -30,11 +34,10 @@ npm run dev
 
 ## Deploy to Vercel
 
-1. Push this folder to a GitHub repo (`.env*` is git-ignored).
-2. Vercel > Add New > Project > import the repo (framework auto-detects as Next.js).
-3. Add env vars: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `ALLOWED_EMAIL_DOMAINS`.
-4. Deploy, then add the production callback URL to the Google OAuth client.
+1. Push to GitHub (`.env*` is git-ignored).
+2. Vercel > Add New > Project > import the repo (Next.js is auto-detected).
+3. Add the three env vars above and deploy.
 
 ## Editing content
 
-The original single-file site was split into `content/hub.html` (page body), `app/hub.css` (styles) and `public/hub.js` (view switching). Edit the HTML in `content/hub.html`.
+Page body: `content/hub.html`. Styles: `app/hub.css`. View switching: `public/hub.js`.
